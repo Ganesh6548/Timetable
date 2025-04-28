@@ -145,3 +145,6 @@ if uploaded_file:
             st.warning(f"No classes found for {target_date.strftime('%A, %d %B %Y')}")
 else:
     st.info("Please upload an Excel timetable file to begin")
+if 
+  st.button("refresh ")
+  st.experimental_rerun()
