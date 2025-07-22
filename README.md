@@ -1,20 +1,36 @@
-🎓 Timetable Viewer (Streamlit App)
+🎓 
+📅 Academic Calendar & Timetable Viewer (Streamlit App)
 
-This is a Streamlit app to view and download your university timetable easily from an uploaded Excel file.
-You can check your schedule for Today, Tomorrow, Custom Date, or the Whole Week!
+This is a fully interactive Streamlit app that allows users to view and explore their university academic calendar and timetable from an uploaded Excel file.
+
+You can view regular classes, special events (like seminars, workshops, orientations), and important/national days—all presented on a dynamic calendar interface.
 
 
 ---
 
 ✨ Features
 
-Upload your timetable (Excel .xlsx file).
+✅ Upload your Academic Excel (.xlsx) file with sheets like timetable, special_days, and important_days.
+✅ Calendar grid view with clear visual markers for each type of event.
+✅ ⭐ Special icons for Workshops, Seminars, National Days, and more.
+✅ 🔍 Click on any date to view full event details below the calendar.
+✅ 📤 Export your schedule for any day or week to a CSV file (optional add-on).
+✅ 📊 See course details like Instructor, Access Time, Mode, Status, and Department.
 
-View today's, tomorrow's, a custom day's, or the full week's schedule.
 
-See course details like Instructor, Department, Mode, Status, etc.
+---
 
-Download your schedule as a CSV file.
+📅 Smart UI Highlights
+
+🟦 Regular Classes: Black dots
+
+⭐ Special Events / Days: Red exclamations and yellow stars
+
+📌 Event Panel: Appears dynamically below the calendar when a date is clicked
+
+🎨 Clean design with responsive layout and CSS-based calendar styling
+
+🎯 Supports up to 2030 and works for all universities (just change the Excel!)
 
 
 
@@ -22,93 +38,110 @@ Download your schedule as a CSV file.
 
 🚀 How to Run Locally
 
-1. Install required Python packages:
+Step 1: Install required Python packages
 
-pip install streamlit pandas
+pip install streamlit pandas openpyxl
 
+Step 2: Save your app code
 
-2. Save the provided code as a Python file, e.g., app.py.
+Save your main Python code as app.py.
 
-
-3. Run the app:
+Step 3: Run the Streamlit app
 
 streamlit run app.py
 
+Step 4: Open the app in your browser
 
-4. Open the app in your browser (usually at http://localhost:8501).
-
-
+Streamlit will launch the app at:
+http://localhost:8501
 
 
 ---
 
-🛠 Step-by-Step Usage
+🛠 How to Use the App
 
-1. Open the app.
+1. Open the app in your browser.
 
 
 2. In the sidebar:
 
-Enter your University Name.
+Enter your University Name
 
-Choose whether you want to view Today, Tomorrow, Custom Date, or This Week.
+Select Year and Month
 
-If needed, pick a Custom Date.
-
-
-
-3. Upload your timetable Excel file.
+Upload your .xlsx file
 
 
-4. Your schedule will appear automatically!
+
+3. View your academic calendar with:
+
+📅 Weekly layout
+
+⭐ Event highlights
 
 
-5. You can expand each class to see more details.
+
+4. Click on any date to see detailed info for:
+
+Regular Classes
+
+Special Events (Workshops, Hackathons, etc.)
+
+National/Important Days
 
 
-6. Download your schedule as a CSV file if needed.
+
+5. Event details update instantly below the calendar!
 
 
 
 
 ---
 
-☁️ How Streamlit Cloud Works (Behind the Scenes)
+☁️ Deploy on Streamlit Cloud
 
-Streamlit Cloud is a platform to host and share Streamlit apps easily.
+You can deploy this app to Streamlit Cloud easily.
 
-You connect your GitHub repo (where your app code lives) to Streamlit Cloud.
+Required Files for Deployment
 
-Streamlit Cloud automatically installs your Python libraries (like streamlit and pandas) by reading a requirements.txt file.
+app.py – Your main Streamlit code
 
-It runs your streamlit run app.py command on their servers.
-
-Then, it serves your app live on a public web link, which you can share with others!
+requirements.txt – List of dependencies
 
 
-Important:
-
-You need a requirements.txt file listing required Python packages (example below).
-
-You don't need to manually run anything – Streamlit Cloud handles it!
-
-
-Example requirements.txt:
+Example requirements.txt
 
 streamlit
 pandas
+openpyxl
+
+Just push these files to a GitHub repo and connect it to Streamlit Cloud.
 
 
 ---
 
-📂 Files You Need in GitHub Repo
+📂 Excel File Format (Required Sheets)
 
-app.py (your Streamlit code)
+timetable: Contains your class schedules
 
-requirements.txt (with package names)
+special_days: Events like workshops, hackathons, orientations
+
+important_days: National or university-level observances
 
 
-Then you can deploy easily!
+Each sheet must have a Date column with valid Excel date format.
 
 
 ---
+
+✅ New Additions from Previous Version
+
+🆕 Full calendar grid layout UI
+
+🆕 ⭐ Support for special event types (over 20+ types auto-highlighted)
+
+🆕 📌 Event detail panel moved below calendar
+
+🆕 🖼️ UI redesigned to match uploaded calendar image exactly
+
+🆕 📂 Multi-sheet Excel parsing with dynamic classification
