@@ -1,148 +1,139 @@
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
-from io import StringIO
+from datetime import datetime, date
+import calendar
 
-# App title and config
-st.set_page_config(page_title="Timetable", layout="wide")
-st.title("🎓 Timetable Viewer")
+# === Page Setup ===
+st.set_page_config("📅 Academic Calendar", layout="wide")
+st.title("📅 My Academic Calendar")
 
-# Helper function to get week dates
-def get_week_dates(reference_date):
-    # Find Monday of the current week
-    monday = reference_date - timedelta(days=reference_date.weekday())
-    # Generate dates from Monday to Saturday
-    return [monday + timedelta(days=i) for i in range(6)]  # 0-5 gives Monday to Saturday
-
-# Sidebar for inputs
+# === Sidebar ===
 with st.sidebar:
     st.header("Settings")
     university_name = st.text_input("University Name", "Tech University")
-    date_option = st.radio(
-        "Select Date",
-        ["Today", "Tomorrow", "Custom Date", "This Week"],
-        index=0
-    )
-    
-    if date_option == "Custom Date":
-        target_date = st.date_input("Select Date")
-    elif date_option == "This Week":
-        target_date = None  # Will handle week view separately
-    else:
-        today = datetime.today().date()
-        target_date = today + timedelta(days=1) if date_option == "Tomorrow" else today
-    
-    uploaded_file = st.file_uploader(
-        "Upload Timetable (Excel)",
-        type=["xlsx"]
-    )
+    uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
+    selected_year = st.selectbox("Select Year", list(range(2023, 2031)), index=2)
+    selected_month = st.selectbox("Select Month", list(calendar.month_name)[1:], index=datetime.today().month - 1)
 
-# Main processing function (updated to handle multiple dates)
-def get_timetable(target_dates, file_content):
-    try:
-        xlsx = pd.ExcelFile(file_content)
-        all_tasks = []
-        
-        for date in target_dates:
-            tasks = []
-            for sheet in xlsx.sheet_names:
-                df = xlsx.parse(sheet)
-                df.columns = df.columns.str.strip()
-                
-                if 'Date' in df.columns:
-                    df['Date'] = df['Date'].astype(str).str.strip()
-                    df = df[df['Date'] != "Date"]
-                    
-                    parsed_dates = []
-                    for date_str in df['Date']:
-                        try:
-                            date_obj = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S").date()
-                        except ValueError:
-                            try:
-                                date_obj = datetime.strptime(date_str.split("-")[0], "%d-%m-%Y").date()
-                            except ValueError:
-                                date_obj = None
-                        parsed_dates.append(date_obj)
-                    
-                    df['Date_parsed'] = parsed_dates
-                    match_df = df[df['Date_parsed'] == date]
-                    if not match_df.empty:
-                        match_df['Department'] = sheet
-                        match_df['Day'] = date.strftime("%A")
-                        match_df['University'] = university_name  # Add university name
-                        tasks.append(match_df)
-            
-            if tasks:
-                daily_df = pd.concat(tasks)
-                daily_df['Display_Date'] = date.strftime("%A, %d %B %Y")
-                all_tasks.append(daily_df)
-        
-        return pd.concat(all_tasks) if all_tasks else pd.DataFrame()
-    
-    except Exception as e:
-        st.error(f"Error processing file: {e}")
-        return pd.DataFrame()
+# === Cache Loader ===
+@st.cache_data
+def load_excel_data(file, university):
+    xlsx = pd.ExcelFile(file)
+    timetable_list, special_days, important_days = [], pd.DataFrame(), pd.DataFrame()
 
-# Main app display
+    for sheet in xlsx.sheet_names:
+        df = xlsx.parse(sheet)
+        df.columns = df.columns.str.strip()
+
+        if sheet.lower() == "special_days" and 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            special_days = df.dropna(subset=['Date'])
+
+        elif sheet.lower() == "important_days" and 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            important_days = df.dropna(subset=['Date'])
+
+        elif 'Date' in df.columns:
+            df = df[df['Date'] != "Date"]
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            df.dropna(subset=['Date'], inplace=True)
+            df['Department'] = sheet
+            df['University'] = university
+            timetable_list.append(df)
+
+    timetable_df = pd.concat(timetable_list, ignore_index=True) if timetable_list else pd.DataFrame()
+    return timetable_df, special_days, important_days
+
+# === Main App Logic ===
 if uploaded_file:
-    if date_option == "This Week":
-        week_dates = get_week_dates(datetime.today().date())
-        result_df = get_timetable(week_dates, uploaded_file)
-        
-        if not result_df.empty:
-            st.header(f"📅 Weekly Schedule")
-            
-            # Group by date and display each day separately
-            for date, group in result_df.groupby('Display_Date'):
-                st.subheader(f"🗓️ {date}")
-                
-                for _, row in group.iterrows():
-                    with st.expander(f"{row.get('Activity', 'Class')} - {row.get('Access time', '')}"):
-                        cols = st.columns(3)  # Changed to 3 columns
-                        cols[0].metric("University", row.get('University', 'N/A'))
-                        cols[1].metric("Department", row.get('Department', 'N/A'))
-                        cols[2].metric("Course", row.get('Course', 'N/A'))
-                        st.write(f"**Instructor:** {row.get('Expert Name', 'N/A')}")
-                        st.write(f"**Mode:** {row.get('Mode', 'N/A')}")
-                        st.write(f"**Status:** {row.get('Status 1', '')} {row.get('Status 2', '')}")
-            
-            # Download button
-            csv = result_df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Download Weekly Schedule as CSV",
-                data=csv,
-                file_name=f"weekly_schedule_{week_dates[0].strftime('%Y%m%d')}_to_{week_dates[-1].strftime('%Y%m%d')}.csv",
-                mime='text/csv'
-            )
-        else:
-            st.warning("No classes found for this week")
-    else:
-        result_df = get_timetable([target_date], uploaded_file)
-        
-        if not result_df.empty:
-            date_str = target_date.strftime("%A, %d %B %Y")
-            st.header(f"📅 Schedule for {date_str}")
-            
-            for _, row in result_df.iterrows():
-                with st.expander(f"{row.get('Activity', 'Class')} - {row.get('Access time', '')}"):
-                    cols = st.columns(3)  # Changed to 3 columns
-                    cols[0].metric("University", row.get('University', 'N/A'))
-                    cols[1].metric("Department", row.get('Department', 'N/A'))
-                    cols[2].metric("Course", row.get('Course', 'N/A'))
-                    st.write(f"**Instructor:** {row.get('Expert Name', 'N/A')}")
-                    st.write(f"**Mode:** {row.get('Mode', 'N/A')}")
-                    st.write(f"**Status:** {row.get('Status 1', '')} {row.get('Status 2', '')}")
-            
-            # Download button
-            csv = result_df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Download as CSV",
-                data=csv,
-                file_name=f"schedule_{target_date.strftime('%Y%m%d')}.csv",
-                mime='text/csv'
-            )
-        else:
-            st.warning(f"No classes found for {target_date.strftime('%A, %d %B %Y')}")
+    timetable_df, special_days_df, important_days_df = load_excel_data(uploaded_file, university_name)
+
+    month_index = list(calendar.month_name).index(selected_month)
+    cal = calendar.Calendar(firstweekday=6)
+    month_dates = list(cal.itermonthdates(selected_year, month_index))
+    weeks = [month_dates[i:i + 7] for i in range(0, len(month_dates), 7)]
+
+    # Create event maps
+    events, specials, named_days = {}, {}, {}
+    for df, store, key in [(timetable_df, events, 'Activity'),
+                           (special_days_df, specials, 'Event Name'),
+                           (important_days_df, named_days, 'Day Name')]:
+        for _, row in df.iterrows():
+            dt = row['Date'].date()
+            store.setdefault(dt, []).append(row)
+
+    if 'selected_date' not in st.session_state:
+        st.session_state.selected_date = date.today()
+
+    st.subheader(f"{selected_month} {selected_year}")
+    col1, col2 = st.columns([2.5, 1])
+
+    # === Calendar UI ===
+    with col1:
+        st.markdown("### Calendar View")
+        weekday_labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        st.markdown(
+            "<div style='display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-weight:bold;'>"
+            + "".join([f"<div>{day}</div>" for day in weekday_labels]) + "</div>", unsafe_allow_html=True
+        )
+
+        for week in weeks:
+            cols = st.columns(7)
+            for i, day in enumerate(week):
+                style = "color:gray;" if day.month != month_index else ""
+                display_text = f"**{day.day}**"
+
+                # Add markers
+                markers = ""
+                if day in events:
+                    markers += "● "
+                if day in specials:
+                    for s in specials[day]:
+                        typ = str(s.get("Event Type", "")).lower()
+                        if "workshop" in typ:
+                            markers += "🔵 "
+                        elif "orientation" in typ:
+                            markers += "🟢 "
+                if day in named_days:
+                    markers += "⭐"
+
+                if cols[i].button(f"{display_text}\n{markers}", key=f"{day}"):
+                    st.session_state.selected_date = day
+
+    # === Right Panel – Event Details ===
+    with col2:
+        selected = st.session_state.selected_date
+        st.subheader(f"📌 Events on {selected.strftime('%A, %d %B %Y')}")
+
+        if selected in events:
+            for e in events[selected]:
+                st.markdown(f"""
+                🔹 **{e.get('Activity', 'Class')}**  
+                🕒 {e.get('Access time', 'N/A')}  
+                👨‍🏫 {e.get('Expert Name', 'N/A')}  
+                🏛️ {e.get('Department', '')} | {e.get('Course', '')}  
+                💬 {e.get('Mode', '')}  
+                ✅ {e.get('Status 1', '')} {e.get('Status 2', '')}
+                """)
+
+        if selected in specials:
+            for s in specials[selected]:
+                st.markdown(f"""
+                🎯 **{s.get("Event Type", "Special Event")}** – {s.get("Event Name", "")}
+                """)
+
+        if selected in named_days:
+            for n in named_days[selected]:
+                st.markdown(f"⭐ **{n.get('Day Name', 'Special Day')}** *(Region: {n.get('Region', 'Global')})*")
+
+        st.divider()
+        st.markdown("### Legend")
+        st.markdown("● : Regular Class")
+        st.markdown("🔵 : Workshop")
+        st.markdown("🟢 : Orientation")
+        st.markdown("⭐ : National/Special Day")
+
 else:
-    st.info("Please upload an Excel timetable file to begin")
+    st.info("📂 Upload an Excel file containing `timetable`, `special_days`, and `important_days` sheets to get started.")
+
